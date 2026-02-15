@@ -211,7 +211,7 @@ wallpaper-span/
 Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ### Areas for Improvement
-
+- hey, what if the settings panel actuall showed he current picture?  
 - [ ] Support for more than 2 monitors
 - [ ] Vertical monitor arrangements
 - [ ] Custom aspect ratios
