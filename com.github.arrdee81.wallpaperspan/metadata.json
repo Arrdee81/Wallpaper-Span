@@ -1,0 +1,16 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Arrdee81"
+            }
+        ],
+        "Description": "Span a single wallpaper across two side-by-side monitors with shuffle support",
+        "Id": "com.github.arrdee81.wallpaperspan",
+        "License": "GPL-3.0-or-later",
+        "Name": "Wallpaper Span",
+        "Version": "1.0.0",
+        "Website": "https://github.com/Arrdee81/wallpaper-span"
+    },
+    "KPackageStructure": "Plasma/Wallpaper"
+}

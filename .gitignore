@@ -1,0 +1,38 @@
+# Build files
+build/
+*.o
+*.so
+*.a
+*.lo
+*.la
+.libs/
+moc_*.cpp
+*.moc
+qrc_*.cpp
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+
+# Qt
+*.qmlc
+*.jsc
+*.autosave
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Archives
+*.tar.gz
+*.zip
+*.tar.xz
+
+# User-specific
+.cache/
