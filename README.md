@@ -52,7 +52,7 @@ sudo dnf install gcc-c++ cmake extra-cmake-modules plasma-workspace-devel qt6-qt
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/Wallpaper-Span.git
+git clone https://github.com/Arrdee81/Wallpaper-Span.git
 cd Wallpaper-Span
 ```
 
