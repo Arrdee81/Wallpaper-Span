@@ -25,7 +25,7 @@ A KDE Plasma 6 wallpaper plugin that spans a single ultrawide wallpaper image ac
 │  Left Monitor   │  Right Monitor  │
 │    (Left Half)  │   (Right Half)  │
 │                 │                 │
-│   ◄────────── Single 7680×2160 Image ──────────►  │
+│   ◄────────── Single 7680×2160 Image ──────────►  │      <------------ sick work, claude. 
 └─────────────────┴─────────────────┘
 ```
 
