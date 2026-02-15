@@ -13,19 +13,25 @@ A KDE Plasma 6 wallpaper plugin that spans a single ultrawide wallpaper image ac
 - ⚡ **Event-driven sync** - C++ file watcher for instant updates (zero CPU when idle)
 - 🎨 **Smooth transitions** - Elegant fade animations between wallpapers
 - ⚙️ **Configurable intervals** - From 1 minute to 8 hours
-- 🔒 **No sudo required** - Installs to user directory for safety
+- 🔒 **No sudo required** - Installs to user directory 
 - 🎯 **Manual control** - "Next Wallpaper" button to skip anytime
-
+- 💩 **Dang** this ai was up itself. 
++
 ## Screenshots
 
-*Your wallpaper will span seamlessly across both monitors like this:*
+### Wallpaper Spanning Across Dual Monitors
+![Dual monitor wallpaper span](screenshots/Screenshot_20260214_193447.png)
+
+### Settings Panel
+![Configuration interface](screenshots/Screenshot_20260214_194427.png)
+^^^ imagine bezels!
 
 ```
 ┌─────────────────┬─────────────────┐
 │  Left Monitor   │  Right Monitor  │
 │    (Left Half)  │   (Right Half)  │
 │                 │                 │
-│   ◄────────── Single 7680×2160 Image ──────────►  │
+│   ◄────────── Single 7680×2160 Image ──────────►  │      <------------ sick work, claude. 
 └─────────────────┴─────────────────┘
 ```
 
@@ -52,7 +58,7 @@ sudo dnf install gcc-c++ cmake extra-cmake-modules plasma-workspace-devel qt6-qt
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/Wallpaper-Span.git
+git clone https://github.com/Arrdee81/Wallpaper-Span.git
 cd Wallpaper-Span
 ```
 
@@ -205,7 +211,7 @@ wallpaper-span/
 Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ### Areas for Improvement
-
+- hey, what if the settings panel actuall showed he current picture?  
 - [ ] Support for more than 2 monitors
 - [ ] Vertical monitor arrangements
 - [ ] Custom aspect ratios
@@ -214,7 +220,7 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## Credits
 
-- **Author:** Arrdee81
+- **Author:** Arrdee81 (he paid the electric while claude used tokens)
 - **License:** GPL-3.0-or-later
 - Built with KDE Frameworks 6 and Qt 6
 
@@ -225,3 +231,4 @@ This project is licensed under the GNU General Public License v3.0 or later. See
 ---
 
 **Note:** This plugin is designed specifically for dual 3840×2160 monitor setups arranged side-by-side. For other configurations, you may need to adjust the screen detection logic in `main.qml`.
+If you fork this, yell at me.  Im just getting into this and would love to see how this evolves.  
