@@ -6,15 +6,16 @@
  */
 
 import QtQuick
-import QtQuick.Controls as QQC2
 import QtCore
 import Qt.labs.folderlistmodel
 import org.kde.plasma.plasmoid
-import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.wallpaper.span 1.0
 
 WallpaperItem {
     id: root
+
+    // ── Signal for config UI ────────────────────────────────
+    signal imageChanged(string newImage)
 
     // ── Configuration bindings ──────────────────────────────
     property string folderPath: wallpaper.configuration.FolderPath ?? ""
@@ -33,18 +34,12 @@ WallpaperItem {
     WallpaperSync {
         id: sync
         
-        Component.onCompleted: {
-            console.log("WallpaperSync plugin loaded successfully");
-            console.log("Sync file path:", sync.currentImage);
-        }
-        
         onCurrentImageChanged: {
-            console.log("Sync file changed:", sync.currentImage, "shouldRunTimer:", shouldRunTimer);
             // Right monitor receives updates from left via file watcher
-            if (!shouldRunTimer && sync.currentImage !== root.displayImage) {
+            if (!shouldRunTimer && sync.currentImage) {
                 root.displayImage = sync.currentImage;
                 wallpaper.configuration.CurrentImage = sync.currentImage;
-                console.log("Right monitor: Updated to", sync.currentImage);
+                imageChanged(sync.currentImage);  // Notify config UI
             }
         }
     }
@@ -61,20 +56,13 @@ WallpaperItem {
             myScreenX = root.mapToGlobal(0, 0).x;
         }
 
-        console.log("=== Screen Detection ===");
-        console.log("Screen.virtualX:", Screen.virtualX);
-        console.log("myScreenX:", myScreenX);
-        console.log("Screen.name:", Screen.name);
-        console.log("Screen.geometry:", Screen.desktopAvailableWidth, "x", Screen.desktopAvailableHeight);
-        
-        // Detect if this is the leftmost screen by checking if at virtual desktop origin
-        // This works regardless of monitor size, resolution, or scaling
-        screenSide = (myScreenX === 0) ? "left" : "right";
-        shouldRunTimer = (screenSide === "left");
-        
-        console.log("Detected side:", screenSide);
-        console.log("Should run timer:", shouldRunTimer);
-        console.log("========================");
+        if (myScreenX < 1000) {
+            screenSide = "left";
+            shouldRunTimer = true;
+        } else {
+            screenSide = "right";
+            shouldRunTimer = false;
+        }
     }
 
     // ── Image file scanning ─────────────────────────────────
@@ -112,7 +100,7 @@ WallpaperItem {
         if (imageList.length > 0 && shouldRunTimer) {
             pickNextImage();
         }
-        // Right monitor receives updates via C++ file watcher
+        // Right monitor will get it via polling timer
     }
 
     // ── Shuffle logic ───────────────────────────────────────
@@ -132,17 +120,16 @@ WallpaperItem {
             shuffleHistory = [];
         }
 
-        // Build available list in single pass (more efficient than multiple filters)
-        var available = [];
-        for (var i = 0; i < imageList.length; i++) {
-            var img = imageList[i];
-            // Skip if already shown in current round or is current image
-            if (shuffleHistory.indexOf(img) === -1 && img !== root.displayImage) {
-                available.push(img);
-            }
+        var available = imageList.filter(function(img) {
+            return shuffleHistory.indexOf(img) === -1;
+        });
+
+        if (available.length > 1) {
+            available = available.filter(function(img) {
+                return img !== root.displayImage;
+            });
         }
 
-        // If no images available (shouldn't happen, but handle gracefully)
         if (available.length === 0) {
             shuffleHistory = [];
             available = imageList.slice();
@@ -155,6 +142,7 @@ WallpaperItem {
         root.displayImage = picked;
         writeSyncFile(picked);
         wallpaper.configuration.CurrentImage = picked;
+        imageChanged(picked);  // Notify config UI
     }
 
     // ── Shuffle timer ───────────────────────────────────────
@@ -182,9 +170,8 @@ WallpaperItem {
     Component.onCompleted: {
         detectScreenSide();
         
-        // Right monitor: load current sync file immediately
+        // Right monitor should load from sync file immediately
         if (!shouldRunTimer && sync.currentImage) {
-            console.log("Right monitor: Loading initial sync image:", sync.currentImage);
             root.displayImage = sync.currentImage;
             wallpaper.configuration.CurrentImage = sync.currentImage;
         }
@@ -229,6 +216,7 @@ WallpaperItem {
                 }
             }
         }
+
     }
 
     // ── Public function for config UI "Next" button ─────────

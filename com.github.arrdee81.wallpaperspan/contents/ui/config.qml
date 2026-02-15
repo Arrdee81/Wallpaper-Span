@@ -26,6 +26,14 @@ ColumnLayout {
     property bool cfg_ShuffleEnabled: true
     property string cfg_CurrentImage: ""
 
+    // Listen for wallpaper changes
+    Connections {
+        target: wallpaper
+        function onImageChanged(newImage) {
+            cfg_CurrentImage = newImage;
+        }
+    }
+
     spacing: Kirigami.Units.largeSpacing
 
     // ── Title ───────────────────────────────────────────────
@@ -135,10 +143,9 @@ ColumnLayout {
             enabled: cfg_FolderPath !== ""
             onClicked: {
                 // Call the nextWallpaper function on the wallpaper item
+                // This triggers an immediate change
                 if (wallpaper) {
                     wallpaper.nextWallpaper();
-                } else {
-                    console.error("Wallpaper Span: Wallpaper object not available");
                 }
             }
         }
@@ -168,12 +175,14 @@ ColumnLayout {
         clip: true
 
         Image {
+            id: previewImage
             anchors.fill: parent
             anchors.margins: 1
             source: cfg_CurrentImage ? "file://" + cfg_CurrentImage : ""
             fillMode: Image.PreserveAspectFit
             smooth: true
             asynchronous: true
+            cache: false  // Force reload when source changes
 
             // Dim line showing the center split
             Rectangle {
