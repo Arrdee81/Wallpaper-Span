@@ -16,10 +16,10 @@ A KDE Plasma 6 wallpaper plugin that spans a single ultrawide wallpaper image ac
 - 🔒 **No sudo required** - Installs to user directory 
 - 🎯 **Manual control** - "Next Wallpaper" button to skip anytime
 - 💩 **Dang** this ai was up itself. 
++
 ## Screenshots
 
-*Your wallpaper will span seamlessly across both monitors like this:*
-
+   ![Wallpaper spanning across monitors](screenshots/)
 ```
 ┌─────────────────┬─────────────────┐
 │  Left Monitor   │  Right Monitor  │
