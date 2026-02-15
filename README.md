@@ -24,6 +24,8 @@ A KDE Plasma 6 wallpaper plugin that spans a single ultrawide wallpaper image ac
 
 ### Settings Panel
 ![Configuration interface](screenshots/Screenshot_20260214_194427.png)
+^^^ imagine bezels!
+
 ```
 ┌─────────────────┬─────────────────┐
 │  Left Monitor   │  Right Monitor  │
