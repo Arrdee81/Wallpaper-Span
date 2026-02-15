@@ -19,7 +19,11 @@ A KDE Plasma 6 wallpaper plugin that spans a single ultrawide wallpaper image ac
 +
 ## Screenshots
 
-   ![Wallpaper spanning across monitors](screenshots/)
+### Wallpaper Spanning Across Dual Monitors
+![Dual monitor wallpaper span](screenshots/Screenshot_20260214_193447.png)
+
+### Settings Panel
+![Configuration interface](screenshots/Screenshot_20260214_194427.png)
 ```
 ┌─────────────────┬─────────────────┐
 │  Left Monitor   │  Right Monitor  │
