@@ -1,4 +1,8 @@
-# Wallpaper Span - KDE Plasma 6 Plugin
+# Wallpaper Span - KDE Plasma 6 Plugin 100% coded by Claude
+( I dont want there to ever be any confusion about that, - dont have the ability
+to make something like this, but 1) I couldnt find anyone else working on it and 
+2) I was sick of waiting....and this worked, so here it is if you want to 
+mess with it.)
 
 A KDE Plasma 6 wallpaper plugin that spans a single ultrawide wallpaper image across two side-by-side monitors, with automatic shuffle support.
 
