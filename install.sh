@@ -1,6 +1,6 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────
-# Wallpaper Span - Install Script
+# Wallpaper Span - Install Script (v1.1.0)
 # ─────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -21,7 +21,7 @@ rm -rf build
 mkdir -p build
 cd build
 cmake .. -DCMAKE_INSTALL_PREFIX="$HOME/.local" -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
+make -j"$(nproc)"
 echo "→ Installing C++ plugin to user directory..."
 make install
 cd ..
@@ -61,7 +61,7 @@ echo "  3. Do this on BOTH monitors                "
 echo "=============================================="
 echo ""
 
-read -p "Restart Plasma shell now? (y/n): " answer
+read -r -p "Restart Plasma shell now? (y/n): " answer
 if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
     echo "→ Restarting Plasma..."
     systemctl --user restart plasma-plasmashell.service
