@@ -1,12 +1,7 @@
 /*
  *  Wallpaper Span - Configuration UI
  *  Copyright (C) 2026 Arrdee81
- *
  *  SPDX-License-Identifier: GPL-3.0-or-later
- *
- *  This file defines the settings panel that appears when you
- *  right-click desktop → Configure Desktop & Wallpaper and
- *  select "Wallpaper Span" as the wallpaper type.
  */
 
 import QtQuick
@@ -19,35 +14,26 @@ import org.kde.kirigami as Kirigami
 ColumnLayout {
     id: configRoot
 
-    // These properties are provided by Plasma's config system
-    // They connect to the entries defined in main.xml
+    // These properties are provided by Plasma's config system, bound to
+    // entries declared in main.xml.
     property alias cfg_FolderPath: folderPathField.text
     property int cfg_ShuffleInterval: 15
     property bool cfg_ShuffleEnabled: true
     property string cfg_CurrentImage: ""
 
-    // Listen for wallpaper changes
-    Connections {
-        target: wallpaper
-        function onImageChanged(newImage) {
-            cfg_CurrentImage = newImage;
-        }
-    }
-
     spacing: Kirigami.Units.largeSpacing
 
-    // ── Title ───────────────────────────────────────────────
+    // ── Title ───────────────────────────────────────────────────────────
     Kirigami.Heading {
         text: "Wallpaper Span"
         level: 2
         Layout.bottomMargin: Kirigami.Units.smallSpacing
     }
 
-    // ── Folder selection ────────────────────────────────────
+    // ── Folder selection ────────────────────────────────────────────────
     Kirigami.FormLayout {
         Layout.fillWidth: true
 
-        // Folder path with browse button
         RowLayout {
             Kirigami.FormData.label: "Image folder:"
             spacing: Kirigami.Units.smallSpacing
@@ -66,7 +52,7 @@ ColumnLayout {
             }
         }
 
-        // ── Shuffle toggle ──────────────────────────────────
+        // Shuffle toggle
         QQC2.CheckBox {
             id: shuffleEnabledCheck
             Kirigami.FormData.label: "Shuffle:"
@@ -75,7 +61,7 @@ ColumnLayout {
             onCheckedChanged: cfg_ShuffleEnabled = checked
         }
 
-        // ── Interval selector ───────────────────────────────
+        // Interval selector
         RowLayout {
             Kirigami.FormData.label: "Change every:"
             enabled: shuffleEnabledCheck.checked
@@ -89,75 +75,62 @@ ColumnLayout {
                 onValueChanged: cfg_ShuffleInterval = value
 
                 textFromValue: function(value) {
-                    if (value < 60) {
-                        return value + " min";
-                    } else {
-                        var hours = Math.floor(value / 60);
-                        var mins = value % 60;
-                        if (mins === 0) {
-                            return hours + " hr";
-                        }
-                        return hours + " hr " + mins + " min";
-                    }
+                    if (value < 60) return value + " min"
+                    const hours = Math.floor(value / 60)
+                    const mins = value % 60
+                    return mins === 0 ? hours + " hr"
+                                      : hours + " hr " + mins + " min"
                 }
             }
 
-            // Quick-select buttons for common intervals
             QQC2.Button {
-                text: "5m"
-                flat: true
+                text: "5m"; flat: true
                 onClicked: intervalSpinBox.value = 5
                 highlighted: intervalSpinBox.value === 5
             }
             QQC2.Button {
-                text: "15m"
-                flat: true
+                text: "15m"; flat: true
                 onClicked: intervalSpinBox.value = 15
                 highlighted: intervalSpinBox.value === 15
             }
             QQC2.Button {
-                text: "30m"
-                flat: true
+                text: "30m"; flat: true
                 onClicked: intervalSpinBox.value = 30
                 highlighted: intervalSpinBox.value === 30
             }
             QQC2.Button {
-                text: "1h"
-                flat: true
+                text: "1h"; flat: true
                 onClicked: intervalSpinBox.value = 60
                 highlighted: intervalSpinBox.value === 60
             }
             QQC2.Button {
-                text: "2h"
-                flat: true
+                text: "2h"; flat: true
                 onClicked: intervalSpinBox.value = 120
                 highlighted: intervalSpinBox.value === 120
             }
         }
 
-        // ── Next Wallpaper button ───────────────────────────
+        // Next Wallpaper button
         QQC2.Button {
             Kirigami.FormData.label: "Manual:"
             icon.name: "media-skip-forward"
             text: "Next Wallpaper"
             enabled: cfg_FolderPath !== ""
             onClicked: {
-                // Call the nextWallpaper function on the wallpaper item
-                // This triggers an immediate change
-                if (wallpaper) {
-                    wallpaper.nextWallpaper();
-                }
+                if (wallpaper) wallpaper.nextWallpaper()
             }
         }
 
-        // ── Current image info ──────────────────────────────
+        // Current image info — bound directly to the live config value, no
+        // custom signal plumbing needed.
         QQC2.Label {
             Kirigami.FormData.label: "Current:"
             text: {
-                if (!cfg_CurrentImage) return "None selected";
-                // Show just the filename, not the full path
-                var parts = cfg_CurrentImage.split("/");
-                return parts[parts.length - 1];
+                if (!cfg_CurrentImage) return "None selected"
+                // cfg_CurrentImage is a file:// URL string; pull the basename.
+                const s = cfg_CurrentImage.toString()
+                const idx = s.lastIndexOf("/")
+                return idx >= 0 ? decodeURIComponent(s.substring(idx + 1)) : s
             }
             elide: Text.ElideMiddle
             Layout.fillWidth: true
@@ -165,10 +138,12 @@ ColumnLayout {
         }
     }
 
-    // ── Preview of current image ────────────────────────────
+    // ── Preview of current image ────────────────────────────────────────
     Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: width * (2160 / 7680)  // Maintain ultrawide aspect ratio
+        // Compute aspect from actual screen geometry rather than hardcoded
+        // 7680×2160. Spans two equal-width screens horizontally.
+        Layout.preferredHeight: width * (Screen.height / (Screen.width * 2))
         Layout.topMargin: Kirigami.Units.largeSpacing
         color: Kirigami.Theme.backgroundColor
         radius: Kirigami.Units.cornerRadius
@@ -178,13 +153,17 @@ ColumnLayout {
             id: previewImage
             anchors.fill: parent
             anchors.margins: 1
-            source: cfg_CurrentImage ? "file://" + cfg_CurrentImage : ""
+            // cfg_CurrentImage is already a file:// URL — feed Image directly.
+            source: cfg_CurrentImage
             fillMode: Image.PreserveAspectFit
             smooth: true
             asynchronous: true
-            cache: false  // Force reload when source changes
+            cache: false
+            // Cap decode size for the preview.
+            sourceSize: Qt.size(width * Screen.devicePixelRatio,
+                                height * Screen.devicePixelRatio)
 
-            // Dim line showing the center split
+            // Center split indicator
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
@@ -196,7 +175,6 @@ ColumnLayout {
             }
         }
 
-        // Show placeholder when no image
         QQC2.Label {
             anchors.centerIn: parent
             text: cfg_FolderPath ? "No image loaded" : "Select a folder to get started"
@@ -205,34 +183,32 @@ ColumnLayout {
         }
     }
 
-    // ── Info label ──────────────────────────────────────────
+    // ── Info label ──────────────────────────────────────────────────────
     QQC2.Label {
         Layout.fillWidth: true
         Layout.topMargin: Kirigami.Units.smallSpacing
-        text: "Place 7680×2160 images in your chosen folder. The plugin will split each image across your two monitors."
+        text: "Place wide images (sized to your combined screen width) in the chosen folder. The plugin splits each across both monitors."
         wrapMode: Text.WordWrap
         font.pointSize: Kirigami.Theme.smallFont.pointSize
         opacity: 0.6
     }
 
     // Spacer to push everything to the top
-    Item {
-        Layout.fillHeight: true
-    }
+    Item { Layout.fillHeight: true }
 
-    // ── Folder picker dialog ────────────────────────────────
+    // ── Folder picker dialog ────────────────────────────────────────────
     FolderDialog {
         id: folderDialog
         title: "Choose Wallpaper Folder"
-        currentFolder: cfg_FolderPath ? "file://" + cfg_FolderPath : StandardPaths.writableLocation(StandardPaths.PicturesLocation)
+        currentFolder: cfg_FolderPath
+            ? "file://" + cfg_FolderPath
+            : StandardPaths.writableLocation(StandardPaths.PicturesLocation)
         onAccepted: {
-            // FolderDialog returns a URL like "file:///home/..."
-            // Strip the "file://" prefix for our config
-            var path = selectedFolder.toString();
-            if (path.startsWith("file://")) {
-                path = path.substring(7);
-            }
-            cfg_FolderPath = path;
+            // FolderDialog returns a URL like "file:///home/..." — strip and
+            // decode for plain-path storage in config.
+            let path = selectedFolder.toString()
+            if (path.startsWith("file://")) path = path.substring(7)
+            cfg_FolderPath = decodeURIComponent(path)
         }
     }
 }
