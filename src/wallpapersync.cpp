@@ -1,13 +1,8 @@
-/*
- *  Wallpaper Span - In-process sync singleton
- *  Copyright (C) 2026 Arrdee81
- *  SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 #include "wallpapersync.h"
+
 #include <QQmlEngine>
-#include <QJSEngine>
 #include <QQmlExtensionPlugin>
+#include <QJSEngine>
 
 WallpaperSync::WallpaperSync(QObject *parent)
     : QObject(parent)
@@ -21,14 +16,16 @@ QString WallpaperSync::currentImage() const
 
 void WallpaperSync::setCurrentImage(const QString &image)
 {
-    if (m_currentImage == image) {
-        return;
+    if (m_currentImage != image) {
+        m_currentImage = image;
+        Q_EMIT currentImageChanged();
     }
-    m_currentImage = image;
-    Q_EMIT currentImageChanged();
 }
 
-// QML plugin registration ----------------------------------------------------
+// QML plugin registration. Singleton type — one instance per QQmlEngine.
+// Plasma's SharedQmlEngine reuses one QQmlEngine for the whole process via
+// a static weak_ptr, so this is effectively one instance for the entire
+// plasmashell, shared across both monitors' WallpaperItems.
 class WallpaperSpanPlugin : public QQmlExtensionPlugin
 {
     Q_OBJECT
@@ -38,10 +35,9 @@ public:
     void registerTypes(const char *uri) override
     {
         Q_ASSERT(QLatin1String(uri) == QLatin1String("org.kde.plasma.wallpaper.span"));
-        // One instance per QQmlEngine (= one per plasmashell process).
-        // Both wallpaper instances bind to this same singleton.
         qmlRegisterSingletonType<WallpaperSync>(uri, 1, 0, "WallpaperSync",
-            [](QQmlEngine *, QJSEngine *) -> QObject* {
+            [](QQmlEngine *engine, QJSEngine *) -> QObject * {
+                Q_UNUSED(engine);
                 return new WallpaperSync();
             });
     }

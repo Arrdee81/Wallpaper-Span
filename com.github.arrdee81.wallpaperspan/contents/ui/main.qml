@@ -1,73 +1,95 @@
 /*
  *  Wallpaper Span - KDE Plasma 6 Wallpaper Plugin
  *  Copyright (C) 2026 Arrdee81
+ *
  *  SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import QtQuick
 import QtCore
 import Qt.labs.folderlistmodel
-import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
+import org.kde.plasma.plasmoid
 import org.kde.plasma.wallpaper.span 1.0
 
 WallpaperItem {
     id: root
 
-    // ── Configuration bindings ──────────────────────────────────────────
+    // ── Signal for config UI ────────────────────────────────
+    signal imageChanged(string newImage)
+
+    // ── Right-click desktop menu entry ──────────────────────
+    // contextualActions on a WallpaperItem populates the desktop's
+    // right-click menu with custom entries — same mechanism the stock
+    // Slideshow wallpaper uses for its "Next Image" action.
+    contextualActions: [nextWallpaperAction]
+
+    PlasmaCore.Action {
+        id: nextWallpaperAction
+        text: "Next Wallpaper"
+        icon.name: "media-skip-forward"
+        onTriggered: root.nextWallpaper()
+    }
+
+    // ── Configuration bindings ──────────────────────────────
     property string folderPath: wallpaper.configuration.FolderPath ?? ""
     property int shuffleInterval: wallpaper.configuration.ShuffleInterval ?? 15
     property bool shuffleEnabled: wallpaper.configuration.ShuffleEnabled ?? true
 
-    // ── Internal state ──────────────────────────────────────────────────
-    property var imageList: []           // array of file:// URLs (strings)
-    property var shuffleHistory: []      // bag tracker
+    // ── Internal state ──────────────────────────────────────
+    property var imageList: []
+    property var shuffleHistory: []
     property string screenSide: "unknown"
+    property int myScreenX: 0
     property bool shouldRunTimer: false
-    property bool firstImageLoaded: false
+    property string displayImage: ""
 
-    // ── In-process sync (singleton, no file I/O) ────────────────────────
+    // ── Cross-monitor IPC via C++ QML singleton ─────────────
+    // WallpaperSync is registered as a QML singleton in the plugin. Plasma
+    // shares one QQmlEngine per process across all wallpaper items, so this
+    // singleton has one instance — both monitors' Connections handlers
+    // below fire synchronously on the same property write.
+    //
+    // Both monitors set their displayImage from this handler (not in
+    // pickAndPublish) so the publisher and follower hit Image source
+    // assignment within the same emit cycle, eliminating the head start
+    // the publisher would otherwise get on the image-decode worker queue.
     Connections {
         target: WallpaperSync
         function onCurrentImageChanged() {
-            // Right monitor receives updates instantly via Qt signal
-            if (!root.shouldRunTimer && WallpaperSync.currentImage) {
-                stack.swapTo(WallpaperSync.currentImage)
-                wallpaper.configuration.CurrentImage = WallpaperSync.currentImage
+            if (WallpaperSync.currentImage &&
+                WallpaperSync.currentImage !== root.displayImage) {
+                root.displayImage = WallpaperSync.currentImage;
+                wallpaper.configuration.CurrentImage = WallpaperSync.currentImage;
+                imageChanged(WallpaperSync.currentImage);
             }
         }
     }
 
-    function publish(imgUrl) {
-        WallpaperSync.currentImage = imgUrl
-        wallpaper.configuration.CurrentImage = imgUrl
+    function publish(imagePath) {
+        WallpaperSync.currentImage = imagePath;
     }
 
-    // ── Detect which monitor we're on, against the actual screen layout ─
+    // ── Detect which monitor we're on ───────────────────────
     function detectScreenSide() {
-        const screens = Qt.application.screens
-        if (!screens || screens.length === 0) return
-
-        const myX = root.Screen.virtualX
-        let leftmostX = Number.POSITIVE_INFINITY
-        for (let i = 0; i < screens.length; i++) {
-            if (screens[i].virtualX < leftmostX) leftmostX = screens[i].virtualX
+        myScreenX = Screen.virtualX;
+        if (myScreenX === undefined) {
+            myScreenX = root.mapToGlobal(0, 0).x;
         }
-        screenSide = (myX === leftmostX) ? "left" : "right"
-        shouldRunTimer = (screenSide === "left")
+
+        if (myScreenX < 1000) {
+            screenSide = "left";
+            shouldRunTimer = true;
+        } else {
+            screenSide = "right";
+            shouldRunTimer = false;
+        }
     }
 
-    // Re-detect on layout changes (sleep/wake, hotplug, monitor reorder)
-    Connections {
-        target: root.Screen
-        function onVirtualXChanged() { detectScreenSide() }
-    }
-
-    // ── Image scanning ──────────────────────────────────────────────────
+    // ── Image file scanning ─────────────────────────────────
     FolderListModel {
         id: folderModel
         folder: root.folderPath ? "file://" + root.folderPath : ""
-        // Single set of filters; case-insensitive matching covers .JPG/.PNG etc.
         nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.bmp", "*.webp"]
         caseSensitive: false
         showDirs: false
@@ -75,207 +97,239 @@ WallpaperItem {
         sortField: FolderListModel.Name
 
         onStatusChanged: {
-            if (status === FolderListModel.Ready) rebuildImageList()
+            if (status === FolderListModel.Ready) {
+                rebuildImageList();
+            }
         }
     }
 
     function rebuildImageList() {
-        const list = []
-        for (let i = 0; i < folderModel.count; i++) {
-            const u = folderModel.get(i, "fileURL")
-            if (u) list.push(u.toString())
+        var list = [];
+        for (var i = 0; i < folderModel.count; i++) {
+            var fileUrl = folderModel.get(i, "fileUrl");
+            if (fileUrl) {
+                var path = fileUrl.toString();
+                if (path.startsWith("file://")) {
+                    path = path.substring(7);
+                }
+                list.push(path);
+            }
         }
-        imageList = list
+        imageList = list;
 
-        // Only the leader picks; the follower receives via the singleton.
+        // Only the leader picks an initial image; the follower picks it up
+        // through the singleton.
         if (imageList.length > 0 && shouldRunTimer) {
-            pickNextImage()
+            pickNextImage();
         }
     }
 
-    // ── Shuffle (avoid-repeat bag) ──────────────────────────────────────
+    // ── Shuffle logic ───────────────────────────────────────
     function pickNextImage() {
-        if (!shouldRunTimer) return
-        if (imageList.length === 0) return
+        if (!shouldRunTimer) return;
+        pickAndPublish();
+    }
+
+    // Picks an image and publishes it via the singleton. Both monitors'
+    // Connections handlers fire synchronously inside publish() and set
+    // their own displayImage — we deliberately don't set it here, so the
+    // publisher doesn't get a head start over the follower on the image
+    // decode worker queue.
+    function pickAndPublish() {
+        if (imageList.length === 0) return;
 
         if (imageList.length === 1) {
-            publish(imageList[0])
-            stack.swapTo(imageList[0])
-            return
+            publish(imageList[0]);
+            return;
         }
 
-        // Reset the bag once everything has been shown
         if (shuffleHistory.length >= imageList.length) {
-            shuffleHistory = []
+            shuffleHistory = [];
         }
 
-        let available = imageList.filter(img => shuffleHistory.indexOf(img) === -1)
+        var available = imageList.filter(function(img) {
+            return shuffleHistory.indexOf(img) === -1;
+        });
 
-        // Avoid showing the current image twice in a row
         if (available.length > 1) {
-            available = available.filter(img => img !== stack.currentSrc)
+            available = available.filter(function(img) {
+                return img !== root.displayImage;
+            });
         }
+
         if (available.length === 0) {
-            shuffleHistory = []
-            available = imageList.slice()
+            shuffleHistory = [];
+            available = imageList.slice();
         }
 
-        const picked = available[Math.floor(Math.random() * available.length)]
-        shuffleHistory.push(picked)
-        publish(picked)
-        stack.swapTo(picked)
+        var randomIndex = Math.floor(Math.random() * available.length);
+        var picked = available[randomIndex];
+
+        shuffleHistory.push(picked);
+        publish(picked);
     }
 
-    function nextWallpaper() {
-        if (shouldRunTimer) {
-            pickNextImage()
-            if (shuffleTimer.running) shuffleTimer.restart()
-        }
-    }
-
+    // ── Shuffle timer ───────────────────────────────────────
     Timer {
         id: shuffleTimer
         interval: root.shuffleInterval * 60 * 1000
         running: root.shuffleEnabled && root.imageList.length > 1 && root.shouldRunTimer
         repeat: true
-        onTriggered: pickNextImage()
+        onTriggered: root.pickNextImage()
     }
 
-    // ── React to config changes ─────────────────────────────────────────
+    // ── React to config changes ─────────────────────────────
     onFolderPathChanged: {
-        shuffleHistory = []
-        Qt.callLater(rebuildImageList)
+        shuffleHistory = [];
+        Qt.callLater(rebuildImageList);
     }
+
     onShuffleIntervalChanged: {
-        if (shuffleTimer.running) shuffleTimer.restart()
-    }
-
-    // ── Right-click context action (Plasma 6 idiom) ─────────────────────
-    PlasmaCore.Action {
-        id: nextAction
-        text: i18n("Next Wallpaper")
-        icon.name: "media-skip-forward"
-        onTriggered: root.nextWallpaper()
-    }
-    contextualActions: shouldRunTimer ? [nextAction] : []
-
-    // ── Persist on shutdown (Plasma 6.3+ pattern, BUG: 480509) ──────────
-    Connections {
-        target: Qt.application
-        function onAboutToQuit() {
-            wallpaper.configuration.writeConfig()
+        if (shuffleTimer.running) {
+            shuffleTimer.restart();
         }
     }
 
-    // ── Startup ─────────────────────────────────────────────────────────
+    // ── Startup ─────────────────────────────────────────────
     Component.onCompleted: {
-        // Delays ksplash dismissal until the wallpaper is on-screen
-        root.loading = true
+        detectScreenSide();
 
-        detectScreenSide()
-
-        // Try to restore the last image immediately
-        const saved = wallpaper.configuration.CurrentImage
-        if (saved) {
-            stack.swapTo(saved)
-            // If we're the leader and have a saved image, also publish it so
-            // the follower sees the same thing on cold start.
-            if (shouldRunTimer) {
-                WallpaperSync.currentImage = saved
+        // Symmetric cold-start: read this monitor's saved image and seed
+        // the singleton if it's empty. Both monitors do the same thing;
+        // the singleton's setter dedupes when values match. The Connections
+        // handler above is what actually populates displayImage.
+        var saved = wallpaper.configuration.CurrentImage || "";
+        if (WallpaperSync.currentImage) {
+            // Other monitor already published; sync up if our handler didn't
+            // catch the emit (e.g. our QML wasn't fully constructed yet).
+            if (WallpaperSync.currentImage !== root.displayImage) {
+                root.displayImage = WallpaperSync.currentImage;
+                wallpaper.configuration.CurrentImage = WallpaperSync.currentImage;
             }
+        } else if (saved) {
+            publish(saved);
         }
 
         Qt.callLater(function() {
-            if (folderModel.count > 0) rebuildImageList()
-        })
+            if (folderModel.count > 0) {
+                rebuildImageList();
+            }
+        });
     }
 
-    // ── The crossfading display ─────────────────────────────────────────
+    // ── The actual wallpaper display ────────────────────────
     Rectangle {
         anchors.fill: parent
         color: "black"
 
+        // Crossfade slot machine. Two stacked Image elements take turns
+        // being the visible one. When `displayImage` changes, the inactive
+        // slot starts decoding the new image in the background while the
+        // active slot keeps showing the current one. As soon as the
+        // inactive slot reports Ready, we flip `activeSlot` — both
+        // opacities animate to their new targets simultaneously, producing
+        // a smooth crossfade with no fade-through-black gap.
         Item {
-            id: stack
+            id: imageContainer
             anchors.fill: parent
             clip: true
 
-            // The most recently requested source. Displayed image is whichever
-            // of imgA/imgB is currently at full opacity.
-            property string currentSrc: ""
-            // Which image is currently in front (true=A, false=B). Crossfade
-            // is achieved by flipping this; the Behavior animates the opacities.
-            property bool useA: true
+            property int activeSlot: 0
+            readonly property int crossfadeMs: 800
 
-            function swapTo(src) {
-                if (!src || src === currentSrc) return
-                currentSrc = src
-                // Load into the BACK image so the front keeps showing the
-                // current pixmap during the load — no black flash.
-                if (useA) {
-                    imgB.source = src
-                } else {
-                    imgA.source = src
-                }
+            function loadIntoInactive(path) {
+                var inactive = (activeSlot === 0) ? slot1 : slot0;
+                inactive.source = path ? "file://" + path : "";
             }
 
+            // Slot 0
             Image {
-                id: imgA
-                anchors.fill: parent
+                id: slot0
+
+                // Explicit positioning, NO anchors.fill: anchors would
+                // override the explicit width and break the spanning trick.
                 x: root.screenSide === "left" ? 0 : -width / 2
-                width: parent.width * 2
-                height: parent.height
+                y: 0
 
-                // CRITICAL: bound the decoded pixmap size. Without this Qt
-                // decodes the full image (e.g. 7680×2160 ≈ 63 MiB RGBA) even
-                // though only half is shown. With sourceSize, libjpeg uses
-                // its scaling decoder and memory is bounded.
-                sourceSize: Qt.size(width * Screen.devicePixelRatio,
-                                    height * Screen.devicePixelRatio)
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                cache: false
-
-                opacity: stack.useA ? 1 : 0
-                Behavior on opacity {
-                    NumberAnimation { duration: 600; easing.type: Easing.InOutQuad }
-                }
-
-                onStatusChanged: {
-                    if (status === Image.Ready && !stack.useA) {
-                        stack.useA = true
-                        if (root.loading) root.loading = false
-                        if (!root.firstImageLoaded) root.firstImageLoaded = true
-                    }
-                }
-            }
-
-            Image {
-                id: imgB
-                anchors.fill: parent
-                x: root.screenSide === "left" ? 0 : -width / 2
                 width: parent.width * 2
                 height: parent.height
 
                 sourceSize: Qt.size(width * Screen.devicePixelRatio,
                                     height * Screen.devicePixelRatio)
+
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
-                cache: false
+                cache: true
 
-                opacity: stack.useA ? 0 : 1
+                opacity: (imageContainer.activeSlot === 0 && status === Image.Ready) ? 1.0 : 0.0
                 Behavior on opacity {
-                    NumberAnimation { duration: 600; easing.type: Easing.InOutQuad }
+                    NumberAnimation {
+                        duration: imageContainer.crossfadeMs
+                        easing.type: Easing.InOutQuad
+                    }
                 }
 
                 onStatusChanged: {
-                    if (status === Image.Ready && stack.useA) {
-                        stack.useA = false
-                        if (root.loading) root.loading = false
-                        if (!root.firstImageLoaded) root.firstImageLoaded = true
+                    // When this slot's load completes and it's currently
+                    // the inactive one, promote it — the binding above
+                    // recalculates and the crossfade animation kicks off.
+                    if (status === Image.Ready && imageContainer.activeSlot !== 0) {
+                        imageContainer.activeSlot = 0;
                     }
                 }
             }
+
+            // Slot 1
+            Image {
+                id: slot1
+
+                x: root.screenSide === "left" ? 0 : -width / 2
+                y: 0
+
+                width: parent.width * 2
+                height: parent.height
+
+                sourceSize: Qt.size(width * Screen.devicePixelRatio,
+                                    height * Screen.devicePixelRatio)
+
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: true
+
+                opacity: (imageContainer.activeSlot === 1 && status === Image.Ready) ? 1.0 : 0.0
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: imageContainer.crossfadeMs
+                        easing.type: Easing.InOutQuad
+                    }
+                }
+
+                onStatusChanged: {
+                    if (status === Image.Ready && imageContainer.activeSlot !== 1) {
+                        imageContainer.activeSlot = 1;
+                    }
+                }
+            }
+        }
+
+    }
+
+    // Whenever the singleton hands us a new image, kick off the load on
+    // the inactive crossfade slot. The opacity animations only start
+    // after the new image is actually decoded — so there's never a
+    // black moment between the old and new wallpaper.
+    onDisplayImageChanged: {
+        imageContainer.loadIntoInactive(displayImage);
+    }
+
+    // ── Public function for config UI "Next" button ─────────
+    // Works from either monitor's config dialog. The picked image goes
+    // through the singleton so both monitors update inside one synchronous
+    // emit cycle.
+    function nextWallpaper() {
+        pickAndPublish();
+        if (shuffleTimer.running) {
+            shuffleTimer.restart();
         }
     }
 }

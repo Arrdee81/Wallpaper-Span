@@ -1,239 +1,187 @@
-# Wallpaper Span - KDE Plasma 6 Plugin 100% coded by Claude
-( I dont want there to ever be any confusion about that, - dont have the ability
-to make something like this, but 1) I couldnt find anyone else working on it and 
-2) I was sick of waiting....and this worked, so here it is if you want to 
-mess with it.)
+# Wallpaper Span
 
-A KDE Plasma 6 wallpaper plugin that spans a single ultrawide wallpaper image across two side-by-side monitors, with automatic shuffle support.
+A KDE Plasma 6 wallpaper plugin that splits one ultrawide image (7680×2160) across two side-by-side 4K monitors. Folder-based shuffle with crossfade transitions; both monitors stay locked in step.
 
-![License](https://img.shields.io/badge/license-GPL--3.0-blue)
-![Plasma](https://img.shields.io/badge/Plasma-6-blue)
-![Qt](https://img.shields.io/badge/Qt-6.6%2B-green)
+> 100% coded by Claude. I don't want any confusion about that — I don't have the ability to make something like this, but (1) I couldn't find anyone else working on it and (2) I was sick of waiting. So here it is if you want to mess with it.
 
-## Features
+## What it does
 
-- 🖼️ **Spans ultrawide wallpapers** (7680×2160) across two 3840×2160 monitors
-- 🔄 **Smart shuffle** - Shows each image once before repeating
-- ⚡ **Event-driven sync** - C++ file watcher for instant updates (zero CPU when idle)
-- 🎨 **Smooth transitions** - Elegant fade animations between wallpapers
-- ⚙️ **Configurable intervals** - From 1 minute to 8 hours
-- 🔒 **No sudo required** - Installs to user directory 
-- 🎯 **Manual control** - "Next Wallpaper" button to skip anytime
-- 💩 **Dang** this ai was up itself. 
-+
-## Screenshots
-
-### Wallpaper Spanning Across Dual Monitors
-![Dual monitor wallpaper span](screenshots/Screenshot_20260214_193447.png)
-
-### Settings Panel
-![Configuration interface](screenshots/Screenshot_20260214_194427.png)
-^^^ imagine bezels!
+Point it at a folder of 7680×2160 images. Each image is split: left half goes on the left monitor, right half on the right monitor. Shuffles on a timer, with "show every image once before repeating" semantics. Clicking Next Wallpaper from either monitor's config — or directly from the right-click desktop menu — updates both monitors at the same instant with a crossfade.
 
 ```
 ┌─────────────────┬─────────────────┐
 │  Left Monitor   │  Right Monitor  │
-│    (Left Half)  │   (Right Half)  │
+│   (Left Half)   │  (Right Half)   │   ← imagine bezels
 │                 │                 │
-│   ◄────────── Single 7680×2160 Image ──────────►  │      <------------ sick work, claude. 
+│   ◄────── Single 7680×2160 ──────►
 └─────────────────┴─────────────────┘
 ```
 
+## Screenshots
+
+*(drop your screenshots in here)*
+
 ## Requirements
 
-### CachyOS / Arch Linux
-```bash
+Plasma 6, Qt 6. Designed for dual 3840×2160 monitors arranged side-by-side. For other configurations you'll need to adjust the screen-detection logic in `main.qml`.
+
+Build dependencies:
+
+**Arch / CachyOS**
+```
 sudo pacman -S base-devel cmake extra-cmake-modules plasma-framework qt6-base qt6-declarative
 ```
 
-### Ubuntu / Debian
-```bash
+**Ubuntu / Debian**
+```
 sudo apt install build-essential cmake extra-cmake-modules libplasma-dev qt6-base-dev qt6-declarative-dev
 ```
 
-### Fedora
-```bash
+**Fedora**
+```
 sudo dnf install gcc-c++ cmake extra-cmake-modules plasma-workspace-devel qt6-qtbase-devel qt6-qtdeclarative-devel
 ```
 
-## Installation
+## Install
 
-### From Source (Recommended)
-
-1. **Clone the repository:**
-```bash
-git clone https://github.com/Arrdee81/Wallpaper-Span.git
-cd Wallpaper-Span
 ```
-
-2. **Run the install script:**
-```bash
+git clone https://github.com/Arrdee81/wallpaper-span.git
+cd wallpaper-span
 ./install.sh
 ```
 
-3. **When prompted, restart Plasma** (or do it manually):
-```bash
+`install.sh` asks for sudo because it puts the C++ QML extension in `/usr/lib/qt6/qml`. That's the only location Qt 6 reliably searches for QML modules on Arch/CachyOS — installs to `~/.local/lib/qt6/qml` look like they succeed but Plasma silently ignores them. The wallpaper package (QML + metadata) still goes to `~/.local/share/plasma/wallpapers/` via XDG.
+
+After install, restart Plasma:
+
+```
 systemctl --user restart plasma-plasmashell.service
 ```
 
-4. **Configure on BOTH monitors:**
-   - Right-click desktop → Configure Desktop & Wallpaper
-   - Wallpaper Type: **Wallpaper Span**
-   - Choose your wallpaper folder
-   - Configure shuffle settings
-
-### What Gets Installed
-
-- **C++ Plugin:** `~/.local/lib/qt6/qml/org/kde/plasma/wallpaper/span/`
-- **QML Files:** `~/.local/share/plasma/wallpapers/com.github.arrdee81.wallpaperspan/`
-- **Sync File:** `~/.cache/wallpaper-span.sync` (created automatically)
-
-**No system files are modified!** Everything installs to your home directory.
+Then configure each monitor separately. Right-click each desktop → Configure Desktop and Wallpaper → Wallpaper Type → Wallpaper Span. Point the first one at your wallpaper folder; the second monitor inherits the choice.
 
 ## Usage
 
-### Folder Structure
+Drop 7680×2160 images in a folder:
 
-Place your 7680×2160 wallpaper images in a folder, for example:
 ```
 ~/Pictures/Wallpapers/
 ├── ultrawide-001.png
 ├── ultrawide-002.jpg
-├── nature-scene.jpg
-└── abstract-art.png
+└── ...
 ```
 
-Supported formats: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`
+Supported formats: jpg, jpeg, png, bmp, webp.
 
-### Configuration Options
+Settings:
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Image Folder** | Location of your wallpaper images | (none) |
-| **Shuffle** | Automatically change wallpaper | Enabled |
-| **Change Interval** | How often to change (1-480 minutes) | 15 minutes |
-| **Next Wallpaper** | Manual skip button | - |
+- **Image Folder** — where your wallpapers live.
+- **Shuffle** — on/off.
+- **Change Interval** — 1 minute to 8 hours. Quick buttons for 5m, 15m, 30m, 1h, 2h.
+- **Next Wallpaper** — skip to a new pick immediately. Works from either monitor's config dialog, or from the desktop's right-click menu.
 
-**Quick Intervals:** 5m, 15m, 30m, 1h, 2h buttons for fast selection
+## How it works
 
-## How It Works
+The C++ side (`src/wallpapersync.cpp`) is a small QML singleton with one string property and one change signal. It's registered via `qmlRegisterSingletonType` in a `QQmlExtensionPlugin`. Plasma reuses one `QQmlEngine` for the entire `plasmashell` process via a static `weak_ptr` in `SharedQmlEngine`, so this singleton is *one* shared instance visible to both monitors' `WallpaperItem`s.
 
-### Architecture
+The QML side (`main.qml`) on each monitor has `Connections { target: WallpaperSync }`. When the leader picks a new image (timer or Next button), it writes to `WallpaperSync.currentImage`. The setter compares old vs new, emits `currentImageChanged`, and both monitors' QML handlers fire synchronously inside that emit. No IPC latency, no file watcher, no cache file — both displays update in the same call stack.
 
-- **Left Monitor** (Controller):
-  - Scans wallpaper folder
-  - Picks random images using smart shuffle algorithm
-  - Writes current image path to sync file via C++ plugin
-  - Displays left half of image
+The wallpaper image itself uses two stacked `Image` elements that alternate active/inactive. New picks decode into the inactive slot in the background; when it reports `Image.Ready`, the opacity bindings flip and the two slots crossfade. There's no fade-through-black moment.
 
-- **Right Monitor** (Follower):
-  - Watches sync file using `QFileSystemWatcher` (C++)
-  - Gets notified instantly when left monitor changes wallpaper
-  - Displays right half of the same image
+## What gets installed
 
-### Sync Mechanism
-
-Uses a C++ plugin with Qt's `QFileSystemWatcher` for **event-driven synchronization**:
-- ✅ Instant updates (no polling)
-- ✅ Zero CPU usage when idle
-- ✅ No network or IPC overhead
-- ✅ Simple and reliable
-
-## Uninstallation
-
-```bash
-./uninstall.sh
 ```
-
-Then:
-1. Change wallpaper type back to "Image" on both monitors
-2. Restart Plasma: `systemctl --user restart plasma-plasmashell.service`
+/usr/lib/qt6/qml/org/kde/plasma/wallpaper/span/                       # C++ plugin (sudo)
+~/.local/share/plasma/wallpapers/com.github.arrdee81.wallpaperspan/   # QML package
+```
 
 ## Troubleshooting
 
-### Both monitors show black
-- Verify wallpaper folder contains images
-- Check folder path is correct in settings
-- Restart Plasma shell
+**Both monitors black.** Check the wallpaper folder is set and actually contains images. Restart plasmashell. Confirm the C++ plugin loaded:
 
-### Right monitor doesn't update
-- Ensure both monitors are set to "Wallpaper Span" type
-- Check journalctl logs: `journalctl --user -f | grep WallpaperSync`
-- Verify C++ plugin installed: `ls ~/.local/lib/qt6/qml/org/kde/plasma/wallpaper/span/`
-
-### Permission errors during install
-- Make sure you're running `./install.sh` (not with sudo!)
-- Check that `~/.local` is writable
-
-### Plugin doesn't appear in settings
-- Restart Plasma shell completely
-- Check installation succeeded without errors
-- Verify files exist in `~/.local/share/plasma/wallpapers/`
-
-## Development
-
-### Building from Source
-
-```bash
-# Clean build
-rm -rf build
-mkdir build && cd build
-
-# Configure
-cmake .. -DCMAKE_INSTALL_PREFIX="$HOME/.local" -DCMAKE_BUILD_TYPE=Release
-
-# Build
-make -j$(nproc)
-
-# Install
-make install
+```
+lsof -p (pgrep -x plasmashell) | grep wallpaperspan_sync
 ```
 
-### File Structure
+You should see the `.so` from `/usr/lib/qt6/qml/...`. If it shows a path under `~/.local/lib/qt6/qml/...`, that's a stale install from an older version — `sudo rm -rf` it and re-run `install.sh`.
+
+**Right monitor showing default Plasma blue.** Each monitor's wallpaper plugin is configured separately. Right-click the right monitor's desktop, change its Wallpaper Type to Wallpaper Span. Verify with:
+
+```
+grep wallpaperplugin ~/.config/plasma-org.kde.plasma.desktop-appletsrc
+```
+
+You should see two `wallpaperplugin=com.github.arrdee81.wallpaperspan` lines (one per monitor). Other lines are containments for disconnected/historical screens — ignore them.
+
+**Plugin doesn't appear in the wallpaper-type dropdown.** Verify the QML package is at `~/.local/share/plasma/wallpapers/com.github.arrdee81.wallpaperspan/` and that you restarted plasmashell after installing.
+
+## Building from source
+
+```
+rm -rf build
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+sudo make install
+```
+
+The wallpaper package (QML, metadata, config schema) gets copied separately by `install.sh` to `~/.local/share/plasma/wallpapers/`. To do that step manually:
+
+```
+mkdir -p ~/.local/share/plasma/wallpapers
+cp -r com.github.arrdee81.wallpaperspan ~/.local/share/plasma/wallpapers/
+```
+
+## Uninstall
+
+```
+./uninstall.sh
+systemctl --user restart plasma-plasmashell.service
+```
+
+Switch each monitor's wallpaper type back to "Image" before restarting if you want to keep their per-monitor saved wallpaper from before. If `uninstall.sh` is missing/stale:
+
+```
+sudo rm -rf /usr/lib/qt6/qml/org/kde/plasma/wallpaper/span
+rm -rf ~/.local/share/plasma/wallpapers/com.github.arrdee81.wallpaperspan
+```
+
+## File layout
 
 ```
 wallpaper-span/
-├── CMakeLists.txt              # C++ build configuration
-├── install.sh                  # Installation script
-├── uninstall.sh               # Removal script
+├── CMakeLists.txt
+├── install.sh
+├── uninstall.sh
 ├── src/
-│   ├── wallpapersync.h        # C++ sync plugin header
-│   ├── wallpapersync.cpp      # C++ sync plugin implementation
-│   └── qmldir                 # QML module definition
+│   ├── wallpapersync.h
+│   ├── wallpapersync.cpp
+│   └── qmldir
 └── com.github.arrdee81.wallpaperspan/
-    ├── metadata.json          # Plugin metadata
+    ├── metadata.json
     └── contents/
         ├── config/
-        │   └── main.xml       # Configuration schema
+        │   └── main.xml
         └── ui/
-            ├── main.qml       # Main wallpaper display
-            └── config.qml     # Settings UI
+            ├── main.qml
+            └── config.qml
 ```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+Issues and PRs welcome. Forks too — if you fork it, yell at me. I'm just getting into this and would like to see where it goes.
 
-### Areas for Improvement
+Roadmap-ish things I'd still want, in no particular order:
 
-- [✅] ~~hey, what if the settings panel actuall showed he current picture?~~  
-- [ ] Support for more than 2 monitors
-- [ ] Vertical monitor arrangements
-- [ ] Custom aspect ratios
-- [ ] Right-click context menu "Next Wallpaper" option
-- [ ] Transition effects (crossfade, slide, etc.)
+- Support for more than two monitors
+- Vertical monitor arrangements
+- Configurable crossfade duration in the settings panel
+- Better detection of monitor layout that doesn't rely on the `virtualX < 1000` heuristic
 
 ## Credits
 
-- **Author:** Arrdee81 (he paid the electric while claude used tokens)
-- **License:** GPL-3.0-or-later
-- Built with KDE Frameworks 6 and Qt 6
+Author: Arrdee81 (paid the electric while Claude burned tokens).
 
-## License
+License: [GPL-3.0-or-later](LICENSE).
 
-This project is licensed under the GNU General Public License v3.0 or later. See [LICENSE](LICENSE) for details.
-
----
-
-**Note:** This plugin is designed specifically for dual 3840×2160 monitor setups arranged side-by-side. For other configurations, you may need to adjust the screen detection logic in `main.qml`.
-If you fork this, yell at me.  Im just getting into this and would love to see how this evolves.  
+Built on KDE Frameworks 6 and Qt 6.
