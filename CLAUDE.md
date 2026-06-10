@@ -1,5 +1,14 @@
 # Homelab Project — Claude Code Instructions
 
+<!--
+  MANAGED FILE — do not edit copies directly.
+  Canonical source: homelab-reference/CLAUDE.md. An identical copy is committed to
+  every homelab repo. To change the rules: edit the canonical copy in
+  homelab-reference, then run homelab-reference/sync-claude-md.sh to propagate the
+  change (copy + commit + push) to all repos. Editing a copy directly will be
+  overwritten on the next sync.
+-->
+
 ## Source of truth
 The file `homelab-reference.md` in this repo is the current state of my
 homelab. Treat it as authoritative over your own memory or assumptions. If
