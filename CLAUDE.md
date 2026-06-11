@@ -10,15 +10,21 @@
 -->
 
 ## Source of truth
-The file `homelab-reference.md` in this repo is the current state of my
-homelab. Treat it as authoritative over your own memory or assumptions. If
-something in a chat contradicts it, the more recent reality wins — and that means
-the doc is now stale and must be updated (see Maintenance). It is NOT auto-loaded —
-**READ THE WHOLE FUCKING THING** (use the Read tool) at the start of any session
-that touches homelab state, before you answer anything, and read it as one connected document:
-the backlog/TODO list, the conventions, and the architecture must agree with each
-other. If they don't, that is a defect you fix, not a fact you repeat (see
+The homelab reference is **split**: each repo has its own `.claude/rules/<repo>-reference.md`
+slice (auto-loads when you work in that repo), and the cross-cutting **spine** lives in the
+`homelab-reference` repo's `homelab-reference.md` — HARD STOPS, hardware/network, conventions,
+the DNS cluster, home automation, the master to-do list, load-bearing pins, cross-cutting
+lessons, and a repo index.
+
+At the start of any session that touches homelab state: your repo's slice auto-loads — and you
+still **READ THE WHOLE FUCKING THING that is the central `homelab-reference.md`** (the spine; it
+does NOT auto-load from other repos — reach it via the sibling `homelab-reference` checkout).
+Read the slice + spine **as one connected document**: the slice, the conventions, the HARD STOPS,
+and the backlog must agree. If they don't, that is a defect you fix, not a fact you repeat (see
 Internal Consistency & Safety).
+
+Treat all of it as authoritative-but-verify (Doc-trust rule). If a chat contradicts the doc, the
+more recent reality wins — the doc is now stale and must be updated (see Maintenance).
 
 ## How you work with me
 - Terse conversations only. Get to the point.
@@ -111,38 +117,41 @@ repeat.
    dangerous action — is a lost rule. Mention-in-chat is not enough; design-section
    only is not enough; it has to be at the point of action.
 
-6. The doc must be self-defending against a cold reader, and THIS rule
-   stays here, never inside the regenerated doc. A fresh instance opens
-   homelab-reference.md with none of the context that makes a danger
-   obvious. Scattered, descriptive mentions get skimmed; a task-focused
-   reader acts on the nearest actionable line. So every time you
-   regenerate the doc:
-   - Open the file with a "## HARD STOPS" block: the
+6. The reference docs must be self-defending against a cold reader, and THIS rule
+   stays here in CLAUDE.md, never inside the reference docs. A fresh instance opens
+   a slice or the spine with none of the context that makes a danger obvious;
+   a task-focused reader acts on the nearest actionable line. So whenever you
+   regenerate the spine OR a slice:
+   - The central `homelab-reference.md` opens with a "## HARD STOPS" block: the
      handful of never-do actions, each written as imperative + its
      consequence. Hypervisor/Proxmox "never auto-apply, never schedule an
      upgrade or reboot" is first. This block is mandatory; never drop or
      soften it.
-   - Every entry for an action that can reboot, upgrade, rebuild, wipe,
+   - Every **slice** entry for an action that can reboot, upgrade, rebuild, wipe,
      delete, re-IP, or auto-schedule a host carries its OWN inline 🚫 stop
-     at that entry, not a rule stated only elsewhere. Someone who jumps
-     straight to that section must hit the stop there.
+     at that entry — not a rule stated only in the spine. Someone who opens
+     just that slice must hit the stop there.
    - Phrase every stop as imperative + consequence ("NEVER put
      full_upgrade.yml on a timer — it can reboot a hypervisor running DNS
      and HA unwatched"), never as background description ("the apply is
      human-gated").
-   - This rule lives in the instructions, not the doc, on purpose: a rule
-     that protects the doc cannot live in the artifact rewritten each
-     session by the model it guards against. Keep it here.
+   - This rule lives in CLAUDE.md (synced to every repo), never in the reference
+     docs it guards: a rule that protects the docs cannot live in the artifacts
+     rewritten each session by the model it guards against. Keep it here.
 
 **Doc-trust rule:** treat `homelab-reference.md` as an index of what to verify, not
 ground truth, for any load-bearing fact OR action item. Tag live-verified facts
 with date + method; keep inferences marked ⚠.
 
 ## Maintenance (do this without being asked)
-At the end of any chat that changed homelab state — new/changed service, IP, host,
-convention, or a resolved/closed item — update `homelab-reference.md` in place (I
-edit the file directly), show me the diff, and commit/push on my approval. Briefly
-list what changed.
+At the end of any chat that changed homelab state, update the **right place** — in place,
+show me the diff, commit/push on my approval, briefly list what changed:
+- a **stack-specific** change (a container, a version-with-reason, a stack quirk or lesson) →
+  that repo's `.claude/rules/<repo>-reference.md` slice;
+- a **cross-cutting** change (host/network, a convention, a HARD STOP, a backlog item, a
+  cross-cutting lesson) → the central `homelab-reference.md` spine;
+- a change to **these instructions** (this `CLAUDE.md`) → edit `homelab-reference/CLAUDE.md`
+  and run `homelab-reference/sync-claude-md.sh` to propagate to all repos (never hand-edit a copy).
 
 - Keep ⚠ markers honest: flag anything unverified rather than guessing, and only
   drop a ⚠ once the chat has actually confirmed it.
@@ -178,4 +187,4 @@ list what changed.
   architecture, fix any contradiction, note it.
 - **Versioning:** one version bump per session/run, not per topic. Don't inflate
   the version mid-session. progression must stay clean and monotonic.
-- **Do not edit `homelab-reference.md` until I tell you.**
+- **Do not edit the central `homelab-reference.md` spine until I tell you.** (Per-repo slices follow the normal edit → diff → approval flow.)
