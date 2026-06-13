@@ -5,11 +5,11 @@
                 "Name": "Arrdee81"
             }
         ],
-        "Description": "Span a single wallpaper across two side-by-side monitors with shuffle support",
+        "Description": "Span one wallpaper across any number of side-by-side monitors, in lock-step, with shuffle and crossfade",
         "Id": "com.github.arrdee81.wallpaperspan",
         "License": "GPL-3.0-or-later",
         "Name": "Wallpaper Span",
-        "Version": "1.1.0",
+        "Version": "2.0.0",
         "Website": "https://github.com/Arrdee81/wallpaper-span"
     },
     "KPackageStructure": "Plasma/Wallpaper"

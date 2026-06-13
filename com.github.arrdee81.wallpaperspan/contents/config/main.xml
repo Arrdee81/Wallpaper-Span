@@ -8,15 +8,24 @@
         <entry name="FolderPath" type="String">
             <default></default>
         </entry>
-        <entry name="ShuffleInterval" type="Int">
-            <default>15</default>
+        <entry name="ShuffleEnabled" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="Mode" type="String">
+            <!-- "shuffle" (random, show-each-once) or "sequential" (by name) -->
+            <default>shuffle</default>
+        </entry>
+        <entry name="IntervalSeconds" type="Int">
+            <!-- seconds the wallpaper stays on screen before the next change;
+                 range 10 s … 21600 s (6 h) -->
+            <default>900</default>
+        </entry>
+        <entry name="CrossfadeMs" type="Int">
+            <!-- crossfade duration in milliseconds; 0 = instant cut -->
+            <default>800</default>
         </entry>
         <entry name="CurrentImage" type="String">
             <default></default>
         </entry>
-        <entry name="ShuffleEnabled" type="Bool">
-            <default>true</default>
-        </entry>
     </group>
 </kcfg>
-

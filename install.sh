@@ -1,15 +1,15 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────
-# Wallpaper Span - Install Script
+# Wallpaper Span - Install Script (v2: pure QML, no build, no sudo)
 # ─────────────────────────────────────────────────────────────
 #
-# Installs the C++ QML extension to /usr/lib/qt6/qml (system path —
-# requires sudo). Plasma's Qt 6 only searches /usr/lib/qt6/qml for
-# QML imports by default; ~/.local/lib/qt6/qml is NOT in the import
-# path on Arch/CachyOS without extra environment configuration. The
-# wallpaper package (QML + metadata) goes to ~/.local/share/plasma/
-# wallpapers/, which Plasma does search via XDG_DATA_DIRS.
+# v2 is pure QML — there is no C++ plugin to compile and nothing to
+# write to a system path. Install is just copying the wallpaper package
+# into your user data dir, which Plasma searches via XDG_DATA_DIRS.
 #
+# If you previously installed v1.x, it left a compiled C++ module under
+# the system QML dir (installed with sudo). This script offers to remove
+# that leftover — it is no longer used.
 # ─────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -19,64 +19,46 @@ INSTALL_DIR="$HOME/.local/share/plasma/wallpapers/$PLUGIN_ID"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCE_DIR="$SCRIPT_DIR/$PLUGIN_ID"
 
-# Orphaned from v1.0/v1.1 file-watcher IPC. v1.2 uses an in-process QML
-# singleton; this file is no longer read or written.
-LEGACY_SYNC_FILE="$HOME/.cache/wallpaper-span.sync"
-
 echo "=============================================="
-echo "       Wallpaper Span - Installer            "
+echo "       Wallpaper Span - Installer (v2)        "
 echo "=============================================="
 echo ""
-echo "This installer needs sudo to write the C++ QML"
-echo "plugin to /usr/lib/qt6/qml — Plasma only loads"
-echo "QML modules from system paths by default."
-echo ""
 
-# Build C++ sync plugin
-echo "→ Building C++ sync plugin..."
-rm -rf build
-mkdir -p build
-cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
-echo "→ Installing C++ plugin to /usr/lib/qt6/qml (requires sudo)..."
-sudo make install
-cd ..
-
-# Check the source files exist
 if [ ! -d "$SOURCE_DIR" ]; then
     echo "ERROR: Plugin source not found at: $SOURCE_DIR"
-    echo "       Make sure you're running this from the project root."
+    echo "       Run this from the project root."
     exit 1
 fi
 
-# Remove old wallpaper package installation
+# Install the wallpaper package (pure QML + metadata) — no sudo needed.
 if [ -d "$INSTALL_DIR" ]; then
-    echo "→ Removing previous wallpaper package installation..."
+    echo "→ Removing previous install at $INSTALL_DIR"
     rm -rf "$INSTALL_DIR"
 fi
-
-# Install the wallpaper package (QML + metadata) to user data dir
 echo "→ Installing wallpaper package to: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 cp -r "$SOURCE_DIR"/* "$INSTALL_DIR"/
 
-# Clean up any old user-local C++ install — leftover from earlier
-# installer versions that wrote to ~/.local/lib/qt6/qml. Plasma never
-# loaded from there but having two copies is confusing.
-USER_LOCAL_QML="$HOME/.local/lib/qt6/qml/org/kde/plasma/wallpaper/span"
-if [ -d "$USER_LOCAL_QML" ]; then
-    echo "→ Removing stale user-local C++ install at $USER_LOCAL_QML"
-    rm -rf "$USER_LOCAL_QML"
+# Offer to remove the leftover v1.x C++ module (needs sudo to delete).
+QML_DIR="$(qmake6 -query QT_INSTALL_QML 2>/dev/null || true)"
+LEGACY_CPP="$QML_DIR/org/kde/plasma/wallpaper/span"
+if [ -n "$QML_DIR" ] && [ -d "$LEGACY_CPP" ]; then
+    echo ""
+    echo "→ Found a leftover v1.x C++ module at:"
+    echo "    $LEGACY_CPP"
+    echo "  v2 does not use it. Removing it needs sudo."
+    read -p "  Remove it now? (y/n): " rmcpp
+    if [ "$rmcpp" = "y" ] || [ "$rmcpp" = "Y" ]; then
+        sudo rm -rf "$LEGACY_CPP"
+        echo "  → Removed."
+    else
+        echo "  → Left in place (harmless; just unused)."
+    fi
 fi
 
-# Clean up the v1.0/v1.1 file-watcher IPC artifact.
-if [ -f "$LEGACY_SYNC_FILE" ]; then
-    echo "→ Removing legacy sync file (no longer used in v1.2): $LEGACY_SYNC_FILE"
-    rm -f "$LEGACY_SYNC_FILE"
-fi
+# Also clean the old user-local C++ path some early installers used.
+rm -rf "$HOME/.local/lib/qt6/qml/org/kde/plasma/wallpaper/span" 2>/dev/null || true
 
-echo "→ Installation complete!"
 echo ""
 echo "=============================================="
 echo "  Next steps:                                "
@@ -88,9 +70,8 @@ echo "                                             "
 echo "  2. Right-click each desktop                "
 echo "     -> Configure Desktop & Wallpaper        "
 echo "     -> Wallpaper Type: Wallpaper Span       "
-echo "                                             "
-echo "  Both monitors must be set to Wallpaper     "
-echo "  Span individually.                         "
+echo "     Point one monitor at your folder;       "
+echo "     set the others to Wallpaper Span too.   "
 echo "=============================================="
 echo ""
 
@@ -98,8 +79,8 @@ read -p "Restart Plasma shell now? (y/n): " answer
 if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
     echo "→ Restarting Plasma..."
     systemctl --user restart plasma-plasmashell.service
-    echo "→ Done! Your desktop will reload in a moment."
+    echo "→ Done."
 else
-    echo "→ Remember to restart Plasma when you're ready:"
+    echo "→ Restart when ready:"
     echo "  systemctl --user restart plasma-plasmashell.service"
 fi
