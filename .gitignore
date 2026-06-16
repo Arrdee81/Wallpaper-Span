@@ -36,3 +36,11 @@ install_manifest.txt
 
 # User-specific
 .cache/
+
+# --- secret-block (added by github-sync hygiene sweep) ---
+.env
+.env.*
+secrets.yaml
+secrets.yml
+credentials.json
+credentials.yaml
