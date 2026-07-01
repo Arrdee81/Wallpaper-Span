@@ -9,8 +9,9 @@
  *      screen layout (Qt.application.screens) — no hardcoded resolutions,
  *      no virtualX<1000 heuristic; works for 2, 3+, unequal, mixed-DPI,
  *      vertical or grid arrangements;
- *    • decodes ONLY its slice via Image.sourceClipRect (retained texture is
- *      its half, not the whole span);
+ *    • displays the full span image shifted by its own offset and clipped to
+ *      its window; every monitor uses the identical URL with no sourceSize,
+ *      so Qt's pixmap cache shares ONE decode across all of them;
  *    • is a pure view driven by the shared Sync singleton: it decodes what
  *      Sync asks, reports readiness, and crossfades on Sync.flipNow so both
  *      monitors flip in the same frame.
@@ -37,7 +38,6 @@ WallpaperItem {
     }
 
     // ── This monitor's geometry within the combined desktop ─────────────
-    readonly property real dpr: Screen.devicePixelRatio
     property int totalLogW: Screen.width     // combined-desktop span width  (logical px)
     property int totalLogH: Screen.height    // combined-desktop span height (logical px)
     property int myOffX: 0                    // this monitor's left edge in the span
@@ -64,9 +64,15 @@ WallpaperItem {
         myOffY = Screen.virtualY - minY;
     }
 
-    // Recompute when the screen layout changes.
+    // Recompute when the screen layout changes — including a position-only
+    // rearrangement (same size, new virtualX/Y), which width/height alone
+    // would miss and which would leave stale offsets (same slice on both).
     onWidthChanged: computeGeometry()
     onHeightChanged: computeGeometry()
+    readonly property int _vx: Screen.virtualX
+    readonly property int _vy: Screen.virtualY
+    on_VxChanged: computeGeometry()
+    on_VyChanged: computeGeometry()
 
     // ── Mirror this monitor's Plasma config into the shared singleton ────
     // Both monitors push identical values, so last-writer-wins is harmless.
@@ -128,6 +134,10 @@ WallpaperItem {
         // writeConfig()'s disk I/O — would delay the OTHER monitor's handler
         // and skew the flip. Logging, persistence and notify are deferred.
         function onFlipNow(forGen) {
+            // Stale or never-received generation (e.g. the barrier timeout
+            // fired before this monitor ever got requestImage): keep showing
+            // the current image rather than switching to slot -1 (black).
+            if (forGen !== root._loadingGen || root._loadingSlot < 0) return;
             // CRITICAL PATH — the visual switch is the ONLY work here, so both
             // monitors' handlers finish microseconds apart in this one emit.
             imageContainer.activeSlot = root._loadingSlot;

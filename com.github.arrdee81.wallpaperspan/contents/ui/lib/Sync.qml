@@ -65,9 +65,12 @@ QtObject {
     // ── Monitor lifecycle ───────────────────────────────────────────────
     function registerMonitor() {
         monitorCount++;
-        // If a transition (including the very first image) is in flight, pull
-        // the newcomer into it so the barrier can still complete.
-        if (_flipArmed && pendingImage)
+        // Pull the newcomer into any in-flight generation — armed transition
+        // OR background prefetch. Without this, a monitor registering during
+        // an unarmed prefetch never receives requestImage, never decodes, and
+        // shows black when that generation later flips. The re-emit is safe:
+        // monitors already holding the image report immediately (idempotent).
+        if (pendingImage && pendingGen > gen)
             requestImage(pendingImage, pendingGen);
     }
     function unregisterMonitor() {
