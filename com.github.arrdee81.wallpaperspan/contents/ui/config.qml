@@ -38,6 +38,53 @@ ColumnLayout {
         function onImageChanged(newImage) { cfg_CurrentImage = newImage; }
     }
 
+    // cfg_CurrentImage is a file:// URL (v2.0.1+) or a plain path (older
+    // saved config). Normalize to a URL for Image, decode for display.
+    readonly property string currentImageUrl:
+        !cfg_CurrentImage ? ""
+        : cfg_CurrentImage.indexOf("file://") === 0 ? cfg_CurrentImage
+        : "file://" + encodeURI(cfg_CurrentImage).replace(/#/g, "%23").replace(/\?/g, "%3F")
+    readonly property string currentImageName: {
+        if (!cfg_CurrentImage) return "";
+        var p = cfg_CurrentImage;
+        if (p.indexOf("file://") === 0) p = decodeURIComponent(p.substring(7));
+        return p.split("/").pop();
+    }
+
+    // ── Real combined-desktop geometry (same math as main.qml) ──────────
+    // Drives the preview's aspect ratio and the per-bezel split markers, so
+    // they reflect the actual layout instead of a hardcoded dual-4K guess.
+    readonly property rect spanRect: {
+        var screens = Qt.application.screens;
+        if (!screens || screens.length === 0)
+            return Qt.rect(0, 0, 7680, 2160);   // no screen info: dual-4K placeholder
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (var i = 0; i < screens.length; i++) {
+            var s = screens[i];
+            minX = Math.min(minX, s.virtualX);
+            minY = Math.min(minY, s.virtualY);
+            maxX = Math.max(maxX, s.virtualX + s.width);
+            maxY = Math.max(maxY, s.virtualY + s.height);
+        }
+        return Qt.rect(minX, minY, maxX - minX, maxY - minY);
+    }
+    // Interior monitor boundaries as fractions of the span (0…1, exclusive):
+    // one vertical marker per left edge, one horizontal per top edge.
+    function _boundaryFractions(vertical) {
+        var screens = Qt.application.screens;
+        var fr = [];
+        if (!screens || screens.length < 2) return fr;
+        for (var i = 0; i < screens.length; i++) {
+            var f = vertical
+                ? (screens[i].virtualX - spanRect.x) / spanRect.width
+                : (screens[i].virtualY - spanRect.y) / spanRect.height;
+            if (f > 0.001 && f < 0.999 && fr.indexOf(f) === -1) fr.push(f);
+        }
+        return fr;
+    }
+    readonly property var splitFractionsX: _boundaryFractions(true)
+    readonly property var splitFractionsY: _boundaryFractions(false)
+
     // "Change every" slider: a smooth 0…1 position mapped log-scale to
     // 10 s … 6 h, snapped to a tidy value so the readout stays round.
     function intervalToPos(sec) {
@@ -52,16 +99,16 @@ ColumnLayout {
         return Math.round(raw / 900) * 900;                 // 15 min steps
     }
     function fmtDuration(sec) {
-        if (sec < 60) return sec + " sec";
-        if (sec < 3600) return Math.round(sec / 60) + " min";
+        if (sec < 60) return i18n("%1 sec", sec);
+        if (sec < 3600) return i18n("%1 min", Math.round(sec / 60));
         var h = Math.floor(sec / 3600), rm = Math.round((sec % 3600) / 60);
-        return rm === 0 ? h + " hr" : h + " hr " + rm + " min";
+        return rm === 0 ? i18n("%1 hr", h) : i18n("%1 hr %2 min", h, rm);
     }
 
     spacing: Kirigami.Units.largeSpacing
 
     Kirigami.Heading {
-        text: "Wallpaper Span"
+        text: i18n("Wallpaper Span")
         level: 2
         Layout.bottomMargin: Kirigami.Units.smallSpacing
     }
@@ -71,7 +118,7 @@ ColumnLayout {
 
         // ── Folder ──────────────────────────────────────────────────────
         RowLayout {
-            Kirigami.FormData.label: "Image folder:"
+            Kirigami.FormData.label: i18n("Image folder:")
             spacing: Kirigami.Units.smallSpacing
 
             QQC2.TextField {
@@ -82,7 +129,7 @@ ColumnLayout {
             }
             QQC2.Button {
                 icon.name: "document-open-folder"
-                text: "Browse…"
+                text: i18n("Browse…")
                 onClicked: folderDialog.open()
             }
         }
@@ -90,25 +137,25 @@ ColumnLayout {
         // ── Auto-change toggle ──────────────────────────────────────────
         QQC2.CheckBox {
             id: shuffleEnabledCheck
-            Kirigami.FormData.label: "Auto-change:"
-            text: "Change wallpaper on a timer"
+            Kirigami.FormData.label: i18n("Auto-change:")
+            text: i18n("Change wallpaper on a timer")
             checked: cfg_ShuffleEnabled
             onCheckedChanged: cfg_ShuffleEnabled = checked
         }
 
         // ── Order: shuffle vs sequential ────────────────────────────────
         RowLayout {
-            Kirigami.FormData.label: "Order:"
+            Kirigami.FormData.label: i18n("Order:")
             enabled: shuffleEnabledCheck.checked
             spacing: Kirigami.Units.smallSpacing
 
             QQC2.RadioButton {
-                text: "Shuffle"
+                text: i18n("Shuffle")
                 checked: cfg_Mode === "shuffle"
                 onToggled: if (checked) cfg_Mode = "shuffle"
             }
             QQC2.RadioButton {
-                text: "Sequential"
+                text: i18n("Sequential")
                 checked: cfg_Mode === "sequential"
                 onToggled: if (checked) cfg_Mode = "sequential"
             }
@@ -116,7 +163,7 @@ ColumnLayout {
 
         // ── Interval (10 s … 6 h) ───────────────────────────────────────
         RowLayout {
-            Kirigami.FormData.label: "Change every:"
+            Kirigami.FormData.label: i18n("Change every:")
             enabled: shuffleEnabledCheck.checked
             spacing: Kirigami.Units.largeSpacing
             Layout.fillWidth: true
@@ -140,7 +187,7 @@ ColumnLayout {
 
         // ── Crossfade duration ──────────────────────────────────────────
         RowLayout {
-            Kirigami.FormData.label: "Crossfade:"
+            Kirigami.FormData.label: i18n("Crossfade:")
             spacing: Kirigami.Units.largeSpacing
             Layout.fillWidth: true
 
@@ -153,7 +200,7 @@ ColumnLayout {
                 onMoved: cfg_CrossfadeMs = Math.round(value / 50) * 50
             }
             QQC2.Label {
-                text: cfg_CrossfadeMs === 0 ? "instant" : (cfg_CrossfadeMs / 1000).toFixed(1) + " s"
+                text: cfg_CrossfadeMs === 0 ? i18n("instant") : i18n("%1 s", (cfg_CrossfadeMs / 1000).toFixed(1))
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 6
@@ -163,31 +210,27 @@ ColumnLayout {
 
         // ── Manual next ─────────────────────────────────────────────────
         QQC2.Button {
-            Kirigami.FormData.label: "Manual:"
+            Kirigami.FormData.label: i18n("Manual:")
             icon.name: "media-skip-forward"
-            text: "Next Wallpaper"
+            text: i18n("Next Wallpaper")
             enabled: cfg_FolderPath !== ""
             onClicked: if (wallpaper) wallpaper.nextWallpaper()
         }
 
         // ── Current image filename ──────────────────────────────────────
         QQC2.Label {
-            Kirigami.FormData.label: "Current:"
-            text: {
-                if (!cfg_CurrentImage) return "None selected";
-                var parts = cfg_CurrentImage.split("/");
-                return parts[parts.length - 1];
-            }
+            Kirigami.FormData.label: i18n("Current:")
+            text: currentImageName || i18n("None selected")
             elide: Text.ElideMiddle
             Layout.fillWidth: true
             opacity: 0.7
         }
     }
 
-    // ── Preview (full span, with center split marker) ───────────────────
+    // ── Preview (real span aspect, one marker per monitor boundary) ─────
     Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: width * (2160 / 7680)
+        Layout.preferredHeight: width * (spanRect.height / spanRect.width)
         Layout.topMargin: Kirigami.Units.largeSpacing
         color: Kirigami.Theme.backgroundColor
         radius: Kirigami.Units.cornerRadius
@@ -197,28 +240,45 @@ ColumnLayout {
             id: previewImage
             anchors.fill: parent
             anchors.margins: 1
-            source: cfg_CurrentImage ? "file://" + cfg_CurrentImage : ""
+            source: currentImageUrl
             fillMode: Image.PreserveAspectFit
             smooth: true
             asynchronous: true
             cache: false
-            // Cap preview decode — no need to decode a full 7680px image here.
-            sourceSize: Qt.size(1920, 540)
+            // Cap preview decode — no need to decode the full span here. The
+            // container already has the span's aspect, so a correctly-sized
+            // image fills it edge to edge and the markers land on the bezels.
+            sourceSize: Qt.size(1920, Math.max(1, Math.round(1920 * spanRect.height / spanRect.width)))
 
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: 2
-                color: Kirigami.Theme.highlightColor
-                opacity: 0.6
-                visible: parent.status === Image.Ready
+            Repeater {
+                model: splitFractionsX
+                Rectangle {
+                    x: Math.round(parent.width * modelData) - 1
+                    width: 2
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.6
+                    visible: previewImage.status === Image.Ready
+                }
+            }
+            Repeater {
+                model: splitFractionsY
+                Rectangle {
+                    y: Math.round(parent.height * modelData) - 1
+                    height: 2
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.6
+                    visible: previewImage.status === Image.Ready
+                }
             }
         }
 
         QQC2.Label {
             anchors.centerIn: parent
-            text: cfg_FolderPath ? "No image loaded" : "Select a folder to get started"
+            text: cfg_FolderPath ? i18n("No image loaded") : i18n("Select a folder to get started")
             visible: !cfg_CurrentImage
             opacity: 0.5
         }
@@ -227,7 +287,8 @@ ColumnLayout {
     QQC2.Label {
         Layout.fillWidth: true
         Layout.topMargin: Kirigami.Units.smallSpacing
-        text: "Place images sized to your full combined desktop (e.g. 7680×2160 for two 4K monitors) in the folder. Each image is split across all monitors by their real positions."
+        text: i18n("Place images sized to your full combined desktop (%1×%2) in the folder. Each image is split across all monitors by their real positions.",
+                   spanRect.width, spanRect.height)
         wrapMode: Text.WordWrap
         font.pointSize: Kirigami.Theme.smallFont.pointSize
         opacity: 0.6
@@ -237,13 +298,15 @@ ColumnLayout {
 
     FolderDialog {
         id: folderDialog
-        title: "Choose Wallpaper Folder"
+        title: i18n("Choose Wallpaper Folder")
         currentFolder: cfg_FolderPath ? "file://" + cfg_FolderPath
                                       : StandardPaths.writableLocation(StandardPaths.PicturesLocation)
         onAccepted: {
             var path = selectedFolder.toString();
             if (path.startsWith("file://")) path = path.substring(7);
-            cfg_FolderPath = path;
+            // Store/display the human-readable path; QML's tolerant string→url
+            // conversion re-encodes it wherever it's used as a URL.
+            cfg_FolderPath = decodeURIComponent(path);
         }
     }
 }

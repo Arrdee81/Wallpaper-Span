@@ -32,7 +32,7 @@ WallpaperItem {
     contextualActions: [nextWallpaperAction]
     PlasmaCore.Action {
         id: nextWallpaperAction
-        text: "Next Wallpaper"
+        text: i18n("Next Wallpaper")
         icon.name: "media-skip-forward"
         onTriggered: Sync.advance()
     }
@@ -110,13 +110,12 @@ WallpaperItem {
     Connections {
         target: Sync
 
-        // Sync asks every monitor to decode `path` for generation `forGen`.
-        // We load it into the currently-inactive crossfade slot.
-        function onRequestImage(path, forGen) {
+        // Sync asks every monitor to decode `url` (a file:// URL string) for
+        // generation `forGen`. We load it into the inactive crossfade slot.
+        function onRequestImage(url, forGen) {
             root._loadingGen = forGen;
             root._loadingSlot = (imageContainer.activeSlot === 0) ? 1 : 0;
             var slot = (root._loadingSlot === 0) ? slot0 : slot1;
-            var url = path ? "file://" + path : "";
             // If this slot already holds the decoded image (e.g. the next pick
             // is what's already loaded here), there will be no statusChanged —
             // report immediately. Otherwise set the source and let the status
@@ -183,10 +182,14 @@ WallpaperItem {
         // Cold-start restore: show the last image immediately (no black gap)
         // while the folder rescans in the background. Seed the shared
         // singleton from saved config if nothing is showing yet.
+        // Configs written before v2.0.1 stored a plain path; encode it into
+        // the file:// URL form everything now uses.
         var saved = root.configuration.CurrentImage || "";
+        if (saved && saved.indexOf("file://") !== 0)
+            saved = "file://" + encodeURI(saved).replace(/#/g, "%23").replace(/\?/g, "%3F");
         if (Sync.currentImage === "" && saved) Sync.currentImage = saved;
         if (Sync.currentImage) {
-            slot0.source = "file://" + Sync.currentImage;
+            slot0.source = Sync.currentImage;
             imageContainer.activeSlot = 0;
         }
     }

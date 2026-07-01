@@ -41,6 +41,10 @@ QtObject {
     property int    crossfadeMs: 800
 
     // ─── Image inventory ────────────────────────────────────────────────
+    // Entries are full file:// URL strings exactly as FolderListModel emits
+    // them (percent-encoded). Staying URL-native end-to-end means spaces,
+    // '#', '?' and non-ASCII in filenames never get mangled by a
+    // strip-and-reattach round trip; decode happens only at display time.
     property var imageList: []
 
     // ─── Picking state ──────────────────────────────────────────────────
@@ -48,7 +52,7 @@ QtObject {
     property int  _seqIndex: -1              // cursor for sequential mode
     property bool _seeded: false
 
-    // ─── What's shown / in flight ───────────────────────────────────────
+    // ─── What's shown / in flight (file:// URL strings) ─────────────────
     property string currentImage: ""         // generation `gen` (on screen)
     property string pendingImage: ""         // generation `pendingGen` (decoding)
     property int    gen: 0
@@ -96,9 +100,7 @@ QtObject {
         for (var i = 0; i < _scanner.count; i++) {
             var u = _scanner.get(i, "fileUrl");
             if (!u) continue;
-            var p = u.toString();
-            if (p.startsWith("file://")) p = p.substring(7);
-            list.push(p);
+            list.push(u.toString());   // keep the URL verbatim — see imageList
         }
         imageList = list;
         if (list.length === 0) return;

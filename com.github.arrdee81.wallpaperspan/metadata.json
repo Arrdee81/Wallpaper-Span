@@ -9,7 +9,7 @@
         "Id": "com.github.arrdee81.wallpaperspan",
         "License": "GPL-3.0-or-later",
         "Name": "Wallpaper Span",
-        "Version": "2.0.0",
+        "Version": "2.0.1",
         "Website": "https://github.com/Arrdee81/wallpaper-span"
     },
     "KPackageStructure": "Plasma/Wallpaper"
