@@ -74,7 +74,7 @@ more recent reality wins — the doc is now stale and must be updated (see Maint
   `/mnt/cache/appdata/<service>/`.
 - prox2 LXC appdata root is `/mnt/appdata/`, not `/mnt/data/`.
 - Container/service work → GitOps (compose → commit/push on your approval →
-  Dockhand). Host/OS work → Ansible/Semaphore once rolled out.
+  Dockhand). Host/OS work → Ansible/Semaphore (rolled out; see the `ansible` slice).
 
 ## Internal Consistency & Safety (HARD RULES — these override "preserve existing wording")
 These exist because a backlog item ("schedule `full_upgrade.yml`") once drifted
