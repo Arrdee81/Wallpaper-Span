@@ -74,6 +74,18 @@ WallpaperItem {
     on_VxChanged: computeGeometry()
     on_VyChanged: computeGeometry()
 
+    // The handlers above fire only for THIS screen's own geometry. When all
+    // outputs vanish and return (monitors powered off, DPMS, DP link drop),
+    // plasmashell rebuilds the view while Qt.application.screens can still be
+    // mid-settle (other monitor missing): computeGeometry() then bakes a span/
+    // offset that puts the image entirely outside the clip window — black —
+    // and the list completing afterwards fires NO per-screen signal, so it
+    // stayed black forever. Recompute whenever the screens list itself changes.
+    Connections {
+        target: Qt.application
+        function onScreensChanged() { root.computeGeometry(); }
+    }
+
     // ── Mirror this monitor's Plasma config into the shared singleton ────
     // Both monitors push identical values, so last-writer-wins is harmless.
     property string cfgFolder:    root.configuration.FolderPath ?? ""
@@ -137,8 +149,12 @@ WallpaperItem {
             // fired before this monitor ever got requestImage): keep showing
             // the current image rather than switching to slot -1 (black).
             if (forGen !== root._loadingGen || root._loadingSlot < 0) return;
-            // CRITICAL PATH — the visual switch is the ONLY work here, so both
-            // monitors' handlers finish microseconds apart in this one emit.
+            // Self-heal any stale span/offset before the incoming slot shows.
+            // Pure arithmetic over the screens list — cheap enough for the
+            // critical path, and a flip must never reveal an off-window slice.
+            root.computeGeometry();
+            // CRITICAL PATH — the visual switch is the ONLY other work here, so
+            // both monitors' handlers finish microseconds apart in this one emit.
             imageContainer.activeSlot = root._loadingSlot;
             // Notify the config panel promptly (cheap signal, next tick) but
             // defer the disk write well past the crossfade so its I/O can't
