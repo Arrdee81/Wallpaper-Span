@@ -76,6 +76,11 @@ QtObject {
         // monitors already holding the image report immediately (idempotent).
         if (pendingImage && pendingGen > gen)
             requestImage(pendingImage, pendingGen);
+        // Cold-start safety net, independent of the scanner signals — see
+        // _validateCurrent(). Restarting per monitor is harmless: it is one-shot
+        // and the check is idempotent.
+        _validateTries = 0;
+        _validateTimer.restart();
     }
     function unregisterMonitor() {
         if (monitorCount > 0) monitorCount--;
@@ -119,6 +124,40 @@ QtObject {
         _history = [];
         _seqIndex = -1;
         _show(_pick());
+    }
+
+    // ── Cold-start watchdog ─────────────────────────────────────────────
+    // main.qml paints the saved CurrentImage the instant it loads so the desktop
+    // is never black, and _rebuild() above is meant to throw that image straight
+    // back out if it is not in the folder. Observed 2026-07-29: an out-of-folder
+    // image stayed on screen for ~6 minutes of a live session, so that
+    // correction cannot be the only line of defence. This re-checks on a timer
+    // instead of trusting any one FolderListModel signal to have fired, and is
+    // bounded so a genuinely empty/missing folder never spins.
+    property int _validateTries: 0
+
+    function _validateCurrent() {
+        if (_validateTries++ >= 10) return;             // ~30 s ceiling, then give up
+        // A change is already staged and armed: its own _timeout guarantees a
+        // flip, so let that land rather than restaging on top of it.
+        if (_flipArmed && pendingGen > gen) { _validateTimer.restart(); return; }
+        // Drive the rebuild ourselves rather than waiting on imageList: that list
+        // is only ever populated inside _rebuild(), so if the signal that should
+        // have called it never arrived, waiting here would wait forever.
+        // _rebuild() is idempotent and normally fixes currentImage on its own.
+        _rebuild();
+        if (imageList.length === 0) { _validateTimer.restart(); return; }   // nothing scanned yet
+        if (currentImage && imageList.indexOf(currentImage) !== -1) return; // valid — done
+        // Restored image is not in the folder (moved, deleted, or never there).
+        _history = [];
+        _seqIndex = -1;
+        _show(_pick());
+    }
+
+    property Timer _validateTimer: Timer {
+        interval: 3000
+        repeat: false
+        onTriggered: bus._validateCurrent()
     }
 
     // ── Picking ─────────────────────────────────────────────────────────
